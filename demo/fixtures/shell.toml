@@ -1,0 +1,33 @@
+[font]
+base-size = 14
+
+[popups]
+background = "#11111b"
+background-alpha = 1.0
+text = "#cdd6f4"
+border = "#89b4fa"
+border-alpha = 1.0
+
+[controls]
+normal-color = "#cdd6f4"
+normal-fill-alpha = 0.04
+normal-border = "#7f849c"
+normal-border-width = 1
+normal-border-alpha = 0.4
+hover-cursor-color = "#cdd6f4"
+hover-cursor-fill-alpha = 0.08
+hover-cursor-border = "#89b4fa"
+hover-cursor-border-width = 1
+hover-cursor-border-alpha = 0.3
+focus-color = "#cdd6f4"
+focus-fill-alpha = 0.08
+focus-border = "#89b4fa"
+focus-border-width = 1
+focus-border-alpha = 0.4
+selected-color = "#cdd6f4"
+selected-fill-alpha = 0.18
+selected-border = "#89b4fa"
+selected-border-width = 0
+selected-border-alpha = 1.0
+pressed-fill-alpha = 0.22
+selection-fill-alpha = 0.35

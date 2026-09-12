@@ -1,0 +1,69 @@
+#!/usr/bin/env bash
+set -euo pipefail
+root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+output=${1:-"$root/preview.png"}
+for command in quickshell hyprctl grim jq node; do
+    command -v "$command" >/dev/null || { echo "Missing command: $command" >&2; exit 1; }
+done
+[[ ${XDG_SESSION_TYPE:-} == wayland ]] || { echo "A Wayland session is required" >&2; exit 1; }
+[[ $(hyprctl -j monitors | jq 'length') == 1 ]] || { echo "Preview requires exactly one active monitor" >&2; exit 1; }
+[[ $(hyprctl -j monitors | jq '.[0].transform') == 0 ]] || { echo "Preview requires an untransformed monitor" >&2; exit 1; }
+workspace=9
+[[ $(hyprctl -j clients | jq --argjson ws "$workspace" '[.[] | select(.workspace.id == $ws)] | length') == 0 ]] || {
+    echo "Workspace $workspace is not empty" >&2; exit 1;
+}
+backup_workspace=$(hyprctl -j activeworkspace | jq -r '.name')
+temporary=$(mktemp -d /tmp/usbguard-demo.XXXXXX)
+preview_pid=""
+cleanup() {
+    status=$?
+    if [[ -n $preview_pid ]]; then kill "$preview_pid" 2>/dev/null || true; wait "$preview_pid" 2>/dev/null || true; fi
+    hyprctl dispatch "hl.dsp.focus({workspace=\"$backup_workspace\"})" >/dev/null 2>&1 || true
+    rm -r -- "$temporary"
+    exit "$status"
+}
+trap cleanup EXIT INT TERM HUP
+mkdir -p "$temporary/bin" "$temporary/app" "$temporary/home/.local/state/omarchy/current/theme" "$temporary/home/.config/omarchy"
+cp -r "$root/components" "$root/services" "$root/Panel.qml" "$temporary/app/"
+cp "$root/tests/VisualTest.qml" "$temporary/app/shell.qml"
+cp "$root/tests/fake-cli.cjs" "$temporary/bin/usbguard"
+ln -s "$temporary/bin/usbguard" "$temporary/bin/systemctl"
+ln -s "$temporary/bin/usbguard" "$temporary/bin/pkexec"
+ln -s /usr/share/omarchy/shell/Commons "$temporary/app/Commons"
+ln -s /usr/share/omarchy/shell/Ui "$temporary/app/Ui"
+cp "$root/demo/fixtures/state.json" "$temporary/state.json"
+cp "$root/demo/fixtures/colors.toml" "$temporary/home/.local/state/omarchy/current/theme/colors.toml"
+cp "$root/demo/fixtures/shell.toml" "$temporary/home/.local/state/omarchy/current/theme/shell.toml"
+cp "$root/demo/fixtures/shell.toml" "$temporary/home/.config/omarchy/shell.toml"
+sed -i "s|/usr/bin/pkexec|$temporary/bin/pkexec|g" "$temporary/app/services/UsbGuardService.qml"
+sed -i 's/title: "USBGuard"/title: "USBGuard · Preview"/' "$temporary/app/Panel.qml"
+hyprctl dispatch "hl.dsp.focus({workspace=\"$workspace\"})" >/dev/null
+env HOME="$temporary/home" USBGUARD_TEST_DIR="$temporary" PATH="$temporary/bin:$PATH" quickshell -p "$temporary/app" >"$temporary/quickshell.log" 2>&1 &
+preview_pid=$!
+ready=false
+for _ in $(seq 1 100); do
+    if quickshell ipc --pid "$preview_pid" call preview snapshot >"$temporary/snapshot.json" 2>/dev/null \
+        && jq -e '.count > 0' "$temporary/snapshot.json" >/dev/null 2>&1; then ready=true; break; fi
+    kill -0 "$preview_pid" 2>/dev/null || { sed -n '1,160p' "$temporary/quickshell.log" >&2; exit 1; }
+    sleep 0.1
+done
+[[ $ready == true ]] || { echo "Preview did not become ready" >&2; exit 1; }
+address=$(hyprctl -j clients | jq -r --argjson pid "$preview_pid" '.[] | select(.pid == $pid) | .address' | head -n1)
+[[ -n $address ]] || { echo "Preview window was not found" >&2; exit 1; }
+hyprctl dispatch "hl.dsp.window.float({window=\"address:$address\", action=\"toggle\"})" >/dev/null
+hyprctl dispatch "hl.dsp.window.resize({window=\"address:$address\", x=900, y=760})" >/dev/null
+hyprctl dispatch "hl.dsp.window.center({window=\"address:$address\"})" >/dev/null
+geometry=""
+previous=""
+for _ in $(seq 1 40); do
+    geometry=$(hyprctl -j clients | jq -r --arg address "$address" '.[] | select(.address == $address) | "\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"')
+    if [[ $geometry == "$previous" && $geometry == *" 900x760" ]]; then break; fi
+    previous=$geometry
+    sleep 0.05
+done
+[[ $geometry == *" 900x760" ]] || { echo "Preview geometry did not settle" >&2; exit 1; }
+sleep 0.1
+capture_geometry=$(hyprctl -j clients | jq -r --arg address "$address" '.[] | select(.address == $address) | "\(.at[0] - 10),\(.at[1] - 10) \(.size[0] + 20)x\(.size[1] + 20)"')
+grim -g "$capture_geometry" "$output"
+description=$(file --brief "$output")
+echo "Captured $output ($description) from fictional fixture; snapshot: $(<"$temporary/snapshot.json")"

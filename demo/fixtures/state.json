@@ -1,0 +1,9 @@
+{
+  "mode": "normal",
+  "connected": true,
+  "target": "allow",
+  "rules": [
+    { "id": 4, "target": "allow" },
+    { "id": 9, "target": "block" }
+  ]
+}

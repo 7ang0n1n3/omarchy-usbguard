@@ -1,0 +1,76 @@
+#!/usr/bin/python3 -I
+"""Root-owned, non-setuid action helper. Invoked exclusively through pkexec.
+
+No shell, arbitrary executable, policy text, filesystem path or environment
+override is accepted. Revalidate the selected record AFTER authentication.
+"""
+import os
+import re
+import subprocess
+import sys
+
+USBGUARD = "/usr/bin/usbguard"
+ENV = {"PATH": "/usr/bin", "LC_ALL": "C", "LANG": "C"}
+ACTIONS = {
+    "allow": ("allow-device",),
+    "block": ("block-device",),
+    "reject": ("reject-device",),
+    "alwaysAllow": ("allow-device", "--permanent"),
+    "alwaysBlock": ("block-device", "--permanent"),
+    "remove": ("remove-rule",),
+}
+
+def validate(args):
+    if len(args) != 3:
+        raise ValueError("Expected action, numeric ID and selected record")
+    action, identifier, expected = args
+    if action not in ACTIONS or not re.fullmatch(r"[1-9][0-9]{0,9}", identifier):
+        raise ValueError("Unsupported action or invalid ID")
+    if int(identifier) > 4294967294:
+        raise ValueError("Invalid ID")
+    if (not expected.startswith(identifier + ": ") or len(expected) > 65536
+            or any(c in expected for c in "\x00\r\n")):
+        raise ValueError("Invalid selected record")
+    return action, identifier, expected
+
+def run(args):
+    return subprocess.run([USBGUARD, *args], stdin=subprocess.DEVNULL,
+                          capture_output=True, text=True, encoding="utf-8",
+                          errors="replace", timeout=10, env=ENV, cwd="/")
+
+def main(args):
+    if os.geteuid() != 0:
+        print("Administrator authentication required. Use pkexec.", file=sys.stderr)
+        return 77
+    if args == ["check"]:
+        print("USBGuard privileged helper ready (uid=0)")
+        return 0
+    try:
+        action, identifier, expected = validate(args)
+        result = run(["list-rules" if action == "remove" else "list-devices"])
+        if result.returncode:
+            print(result.stderr.strip() or "USBGuard listing failed", file=sys.stderr)
+            return 1
+        matches = [line for line in result.stdout.splitlines()
+                   if line.startswith(identifier + ": ")]
+        if matches != [expected]:
+            print("Selected device or rule changed during authentication. Refresh and review it.", file=sys.stderr)
+            return 76
+        result = run([*ACTIONS[action], identifier])
+        if result.returncode:
+            print(result.stderr.strip() or "USBGuard action failed", file=sys.stderr)
+            return 1
+        print("USBGuard action completed")
+        return 0
+    except ValueError as exc:
+        print(str(exc), file=sys.stderr)
+        return 64
+    except subprocess.TimeoutExpired:
+        print("USBGuard request timed out. Refresh before retrying.", file=sys.stderr)
+        return 124
+    except OSError:
+        print("USBGuard executable unavailable", file=sys.stderr)
+        return 69
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

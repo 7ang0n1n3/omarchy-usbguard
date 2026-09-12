@@ -1,0 +1,11 @@
+{
+  "schemaVersion": 1,
+  "id": "tangonine.usbguard",
+  "name": "USBGuard",
+  "description": "Review USB devices and manage USBGuard access policy",
+  "version": "1.1.1",
+  "author": "tangonine",
+  "license": "MIT",
+  "kinds": ["panel"],
+  "entryPoints": {"panel": "Panel.qml"}
+}

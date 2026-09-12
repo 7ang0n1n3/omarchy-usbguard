@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Portable checks; Quickshell integration remains tests/run-service.sh.
+set -euo pipefail
+cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.."
+export PYTHONDONTWRITEBYTECODE=1
+node tests/parser.test.cjs
+python3 tests/helper_test.py
+python3 tests/package_test.py
+python3 tests/install_test.py
+for script in install.sh uninstall.sh install-privileged.sh services/usb-metadata.sh tests/run tests/run-service.sh tests/preview.sh; do
+    bash -n "$script"
+done
