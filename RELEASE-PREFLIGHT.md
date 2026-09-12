@@ -1,12 +1,12 @@
 # Release preparation — 2026-09-12
 
-Status: MIT-licensed local source candidate prepared; remote CI, tag, and
-release assets remain pending. The manifest version is 1.1.1.
+Status: MIT-licensed source candidate published to `main`; tag and release
+assets remain pending. The manifest version is 1.1.1.
 
 ## Candidate identity
 
 - Repository: https://github.com/7ang0n1n3/omarchy-usbguard
-- Remote state when inspected: empty repository with no default-branch HEAD.
+- Remote `main` was created from the clean candidate and GitHub Actions passed.
 - Local candidate: `omarchy-usbguard-release`, cloned from that remote and
   populated from the previously validated working source. Use
   `git rev-parse HEAD` for its full immutable identity after committing.
@@ -31,8 +31,15 @@ release assets remain pending. The manifest version is 1.1.1.
 - `./demo/run`: generated `preview.png` at 920×780 from committed fictional
   fixture data on an empty temporary workspace and restored workspace 1.
   Demo preflight passes.
-- `.github/workflows/tests.yml` is prepared for the portable suite. It has not
-  run remotely because the repository is still empty.
+- A fresh clone resolved to `a31427bac322551592ce9a4cc7bf75f38183d99d`,
+  passed official validation, all portable checks, and the offscreen Quickshell
+  suite. GitHub Actions run 34681865406 passed the portable workflow.
+- Live Git lifecycle testing preserved the prior installed plugin and shell
+  configuration, then exercised add, discovery, enable, open/diagnostics,
+  rescan, no-op update, disable, and removal. Hot reload alone did not register
+  the panel reliably after path replacement; the documented shell restart made
+  the lifecycle pass. The original content-addressed generation and enabled
+  state were restored and verified afterward.
 
 ## Source changes made for release
 
@@ -46,17 +53,15 @@ release assets remain pending. The manifest version is 1.1.1.
 
 ## Remaining release boundary
 
-1. Push the default branch and require green CI.
-2. Exercise fresh installation from the pushed Git repository, live-shell
-   discovery/enable/open/reload/disable/removal, and a fast-forward update.
-   Record the exact final plugin SHA and Omarchy source identity.
-3. Re-run the preflight, write final release notes, and prepare source/release
+1. Confirm the current local HEAD equals remote `main`, the tree is clean, and
+   CI is green for that exact candidate.
+2. Re-run the preflight, finalize release notes, and prepare source/release
    manifests, an SPDX 2.3 SBOM, artifacts, and complete SHA-256 checksums bound
    to the final commit.
-4. Create and push an immutable annotated `v1.1.1` tag only after explicit owner
+3. Create and push an immutable annotated `v1.1.1` tag only after explicit owner
    authorization. Verify the remote tag object and downloaded draft assets with
    tagged preflight before publishing a GitHub release.
 
-No real USB device or policy was changed during release preparation. No Git
-push, tag, or release was published. Existing system helper files were
-not changed. This evidence is scoped to the commands and environment above.
+No real USB device or policy was changed during release preparation. No tag or
+release was published. Existing system helper files were not changed. This
+evidence is scoped to the commands and environment above.

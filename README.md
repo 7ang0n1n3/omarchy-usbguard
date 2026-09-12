@@ -14,17 +14,21 @@ Developed against this machine's Quickshell **0.3.1**, USBGuard **1.1.4**, and L
 omarchy plugin add https://github.com/7ang0n1n3/omarchy-usbguard.git
 bash ~/.config/omarchy/plugins/tangonine.usbguard/install-privileged.sh
 omarchy plugin enable tangonine.usbguard
+omarchy restart shell
 omarchy-shell shell toggle tangonine.usbguard
 ```
 
 Adding the plugin clones its source; it does not execute the privileged installer.
 Review the helper before installing it. Reads work without the helper when the
 account has USBGuard read access. Enablement updates Omarchy shell configuration.
+Restarting the shell ensures nested QML types load from the newly cloned source;
+live testing found that hot reload can delay panel IPC registration.
 
 Update and remove this Git installation with:
 
 ```bash
 omarchy plugin update tangonine.usbguard
+omarchy restart shell
 # If the helper changed, review and reinstall it:
 bash ~/.config/omarchy/plugins/tangonine.usbguard/install-privileged.sh
 # Removal:
@@ -64,8 +68,8 @@ bash uninstall.sh
 Use either plugin or standalone mode for normal operation. Standalone reads
 installed Omarchy theme modules and reloads active theme files every 2.5 seconds.
 No daemon configuration, USB rules, permissions or Hyprland config is edited by
-the user installer. A shell restart may be needed after Git updates if the host
-retains imported QML types; the custom installer uses fresh content URLs.
+the user installer. Git installs restart the shell after add/update because the
+host can retain imported QML types; the custom installer uses fresh content URLs.
 
 ## Permissions and policy
 
